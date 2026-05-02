@@ -134,8 +134,7 @@ try {
 
     <div class="card shadow-sm border-0">
         <div class="card-header bg-white border-0 pt-3 no-print">
-            <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
-                <li class="nav-item">
+<ul class="nav nav-tabs mb-4 flex-nowrap overflow-auto" style="white-space: nowrap; padding-bottom: 5px;">                <li class="nav-item">
                     <button class="nav-link active" id="filiere-tab" data-bs-toggle="tab" data-bs-target="#filiere" type="button" role="tab">Matières / Filière</button>
                 </li>
                 <li class="nav-item">

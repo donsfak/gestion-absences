@@ -95,6 +95,13 @@ if (!empty($filiere_selectionnee)) {
                 <div class="card-body">
                     <form method="POST" action="etudiant.php">
                         <input type="hidden" name="action" value="add">
+
+
+
+                        <div class="mb-3">
+    <label class="form-label small fw-bold">Matricule</label>
+    <input type="number" name="id_etudiant" class="form-control" placeholder="Ex: 2505" required>
+</div>
                         
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Nom</label>
