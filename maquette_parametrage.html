@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maquette - Paramétrage</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { border: none; border-radius: 10px; }
+        .table th { background-color: #f1f3f5; color: #495057; font-weight: 600; }
+        .btn-action { padding: 0.25rem 0.5rem; font-size: 0.875rem; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-5 shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">🎓 GESTION ABSENCES</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link active fw-bold text-white" href="#">⚙️ Paramétrage</a></li>
+                    <li class="nav-item"><a class="nav-link text-secondary" href="#">📝 Saisie</a></li>
+                    <li class="nav-item"><a class="nav-link text-secondary" href="#">📊 Édition / Stats</a></li>
+                </ul>
+                <span class="navbar-text text-light">
+                    Connecté en tant que : <strong>Administrateur ESATIC</strong>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold text-dark">Gestion des Matières</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="#" class="text-decoration-none">Accueil</a></li>
+                    <li class="breadcrumb-item"><a href="#" class="text-decoration-none">Paramétrage</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Matières</li>
+                </ol>
+            </nav>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-4 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                        <h5 class="card-title text-primary fw-bold">➕ Nouvelle Matière</h5>
+                    </div>
+                    <div class="card-body">
+                        <form>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold text-uppercase">Code Matière</label>
+                                <input type="text" class="form-control bg-light" placeholder="Ex: INFO-101">
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label text-muted small fw-bold text-uppercase">Intitulé complet</label>
+                                <input type="text" class="form-control" placeholder="Ex: Programmation Web">
+                            </div>
+                            <button type="button" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">
+                                Enregistrer la matière
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="ps-4">Code</th>
+                                        <th>Intitulé de la Matière</th>
+                                        <th>Statut</th>
+                                        <th class="text-end pe-4">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="ps-4 fw-bold text-secondary">DEV-201</td>
+                                        <td class="fw-bold text-dark">Développement PHP / MySQL</td>
+                                        <td><span class="badge bg-success bg-opacity-10 text-success border border-success">Actif</span></td>
+                                        <td class="text-end pe-4">
+                                            <button class="btn btn-warning btn-action text-dark fw-bold me-1">✏️ Éditer</button>
+                                            <button class="btn btn-danger btn-action text-white fw-bold">🗑️ Supprimer</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ps-4 fw-bold text-secondary">RES-104</td>
+                                        <td class="fw-bold text-dark">Architecture Réseaux et Sécurité</td>
+                                        <td><span class="badge bg-success bg-opacity-10 text-success border border-success">Actif</span></td>
+                                        <td class="text-end pe-4">
+                                            <button class="btn btn-warning btn-action text-dark fw-bold me-1">✏️ Éditer</button>
+                                            <button class="btn btn-danger btn-action text-white fw-bold">🗑️ Supprimer</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ps-4 fw-bold text-secondary">MGT-301</td>
+                                        <td class="fw-bold text-dark">Management des Organisations</td>
+                                        <td><span class="badge bg-success bg-opacity-10 text-success border border-success">Actif</span></td>
+                                        <td class="text-end pe-4">
+                                            <button class="btn btn-warning btn-action text-dark fw-bold me-1">✏️ Éditer</button>
+                                            <button class="btn btn-danger btn-action text-white fw-bold">🗑️ Supprimer</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+</body>
+</html>
