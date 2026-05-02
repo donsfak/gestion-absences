@@ -5,21 +5,24 @@ require 'db.php';
 $erreur = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $user = $_POST['identifiant'];
+    $user = trim($_POST['identifiant']);
     $pass = $_POST['password'];
 
-    $stmt = $pdo->prepare("SELECT * FROM USERS WHERE identifiant = ? AND mot_de_passe = ?");
-    $stmt->execute([$user, $pass]);
+    // 1. On cherche l'utilisateur UNIQUEMENT par son identifiant
+    $stmt = $pdo->prepare("SELECT * FROM USERS WHERE identifiant = ?");
+    $stmt->execute([$user]);
     $u = $stmt->fetch();
 
-    if ($u) {
+    // 2. On vérifie si l'utilisateur existe ET si le mot de passe correspond au hachage
+    if ($u && password_verify($pass, $u['mot_de_passe'])) {
         $_SESSION['user_id'] = $u['id_user'];
         $_SESSION['user_nom'] = $u['nom_complet'];
         $_SESSION['user_role'] = $u['role'];
-        header("Location: edition.php"); // On redirige vers le dashboard
+        header("Location: edition.php");
         exit();
     } else {
-        $erreur = "Identifiants incorrects.";
+        // Message d'erreur générique pour ne pas donner d'indice aux pirates
+        $erreur = "Identifiants ou mot de passe incorrects.";
     }
 }
 ?>
@@ -45,10 +48,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <input type="password" name="password" class="form-control mb-4 p-3" placeholder="Mot de passe" required>
                     <button type="submit" class="btn btn-primary w-100 p-3 fw-bold">SE CONNECTER</button>
 
-<div class="text-center mt-3">
-    <span class="text-muted small">Nouveau dans l'établissement ?</span><br>
-    <a href="register.php" class="text-decoration-none fw-bold text-primary">Créer un compte</a>
-</div>
+                    <div class="text-center mt-3">
+                        <span class="text-muted small">Nouveau dans l'établissement ?</span><br>
+                        <a href="register.php" class="text-decoration-none fw-bold text-primary">Créer un compte</a>
+                    </div>
                 </form>
             </div>
         </div>

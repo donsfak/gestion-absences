@@ -11,20 +11,52 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'ADMIN') {
 
 $message = '';
 
-// 1. TRAITEMENT DE L'AJOUT D'UN ÉTUDIANT
+// --- TRAITEMENT AJAX ---
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'add') {
+    // Vérification du jeton CSRF (sécurité)
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        echo json_encode(['success' => false, 'message' => "Erreur de sécurité CSRF."]);
+        exit();
+    }
+
+    $id_etudiant = htmlspecialchars($_POST['id_etudiant']);
     $nom = htmlspecialchars(strtoupper($_POST['nom']));
     $prenom = htmlspecialchars($_POST['prenom']);
     $sexe = $_POST['sexe'];
     $code_filiere = $_POST['code_filiere'];
 
     try {
-        $stmt = $pdo->prepare("INSERT INTO ETUDIANT (Nom, Prenom, Sexe, code_filiere) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$nom, $prenom, $sexe, $code_filiere]);
-        $message = "<div class='alert alert-success fw-bold shadow-sm'><i class='bi bi-check-circle me-2'></i>L'étudiant a été inscrit avec succès.</div>";
+        $stmt = $pdo->prepare("INSERT INTO ETUDIANT (id_etudiant, Nom, Prenom, Sexe, code_filiere) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$id_etudiant, $nom, $prenom, $sexe, $code_filiere]);
+        
+        // Récupérer le libellé de la filière pour l'affichage dynamique
+        $stmt_filiere = $pdo->prepare("SELECT Libele_filiere FROM FILIERE WHERE code_filiere = ?");
+        $stmt_filiere->execute([$code_filiere]);
+        $libelle_filiere = $stmt_filiere->fetchColumn();
+
+        // Réponse JSON de succès
+        echo json_encode([
+            'success' => true, 
+            'message' => "L'étudiant a été inscrit avec succès.",
+            'etudiant' => [
+                'id_etudiant' => $id_etudiant,
+                'nom' => $nom,
+                'prenom' => $prenom,
+                'sexe' => $sexe,
+                'libelle_filiere' => $libelle_filiere
+            ]
+        ]);
+        exit(); // On arrête l'exécution ici, on ne charge pas le HTML
     } catch (PDOException $e) {
-        $message = "<div class='alert alert-danger shadow-sm'><i class='bi bi-exclamation-triangle me-2'></i>Erreur lors de l'inscription : " . $e->getMessage() . "</div>";
+        // En cas d'erreur (ex: matricule existant)
+        echo json_encode(['success' => false, 'message' => "Erreur : " . $e->getMessage()]);
+        exit();
     }
+}
+
+// --- GESTION DU JETON CSRF (Niveau Expert) ---
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
 // 2. STATISTIQUES DES BADGES (Hommes / Femmes)
@@ -36,7 +68,6 @@ $filieres_filtre = $pdo->query("SELECT * FROM FILIERE ORDER BY Libele_filiere")-
 $filiere_selectionnee = isset($_GET['filtre_filiere']) ? $_GET['filtre_filiere'] : '';
 
 if (!empty($filiere_selectionnee)) {
-    // Si une filière est choisie, on filtre
     $stmt = $pdo->prepare("
         SELECT e.*, f.Libele_filiere 
         FROM ETUDIANT e 
@@ -47,7 +78,6 @@ if (!empty($filiere_selectionnee)) {
     $stmt->execute([$filiere_selectionnee]);
     $etudiants = $stmt->fetchAll();
 } else {
-    // Sinon on affiche tout, trié par filière
     $etudiants = $pdo->query("
         SELECT e.*, f.Libele_filiere 
         FROM ETUDIANT e 
@@ -64,6 +94,8 @@ if (!empty($filiere_selectionnee)) {
     <title>Gestion des Étudiants - ESATIC</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- SweetAlert2 pour de belles notifications (optionnel mais très pro) -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> 
 </head>
 <body class="bg-light">
 
@@ -79,12 +111,13 @@ if (!empty($filiere_selectionnee)) {
             <a href="export_etudiants.php" class="btn btn-success fw-bold shadow-sm me-3" title="Télécharger la liste au format Excel">
                 <i class="bi bi-file-earmark-excel-fill me-2"></i> Exporter
             </a>
-            <span class="badge bg-white text-dark shadow-sm p-2 me-2 border"><i class="bi bi-gender-male text-info fs-6 me-1"></i> <?= $hommes ?> Hommes</span>
-            <span class="badge bg-white text-dark shadow-sm p-2 border"><i class="bi bi-gender-female text-danger fs-6 me-1"></i> <?= $femmes ?> Femmes</span>
+            <span class="badge bg-white text-dark shadow-sm p-2 me-2 border"><i class="bi bi-gender-male text-info fs-6 me-1"></i> <span id="compteur-hommes"><?= $hommes ?></span> Hommes</span>
+            <span class="badge bg-white text-dark shadow-sm p-2 border"><i class="bi bi-gender-female text-danger fs-6 me-1"></i> <span id="compteur-femmes"><?= $femmes ?></span> Femmes</span>
         </div>
     </div>
 
-    <?= $message ?>
+    <!-- Div pour afficher les messages d'erreur si AJAX échoue -->
+    <div id="message-container"><?= $message ?></div>
 
     <div class="row">
         <div class="col-md-4 mb-4">
@@ -93,15 +126,15 @@ if (!empty($filiere_selectionnee)) {
                     <i class="bi bi-person-plus me-2"></i>Nouvel Étudiant
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="etudiant.php">
+                    <!-- Ajout d'un ID au formulaire pour le cibler en JS -->
+                    <form id="form-ajout-etudiant" method="POST" action="etudiant.php">
+                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                         <input type="hidden" name="action" value="add">
 
-
-
                         <div class="mb-3">
-    <label class="form-label small fw-bold">Matricule</label>
-    <input type="number" name="id_etudiant" class="form-control" placeholder="Ex: 2505" required>
-</div>
+                            <label class="form-label small fw-bold">Matricule</label>
+                            <input type="number" name="id_etudiant" class="form-control" placeholder="Ex: 2505" required>
+                        </div>
                         
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Nom</label>
@@ -132,7 +165,11 @@ if (!empty($filiere_selectionnee)) {
                             </select>
                         </div>
                         
-                        <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">Inscrire l'étudiant</button>
+                        <!-- Bouton avec un spinner (roue de chargement) caché -->
+                        <button type="submit" id="btn-submit" class="btn btn-primary w-100 fw-bold shadow-sm">
+                            <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            <span id="btn-text">Inscrire l'étudiant</span>
+                        </button>
                     </form>
                 </div>
             </div>
@@ -158,7 +195,7 @@ if (!empty($filiere_selectionnee)) {
                 </div>
                 
                 <span class="text-muted small fw-bold bg-light p-2 rounded border">
-                    <i class="bi bi-people-fill text-secondary me-1"></i> <?= count($etudiants) ?> affiché(s)
+                    <i class="bi bi-people-fill text-secondary me-1"></i> <span id="compteur-total"><?= count($etudiants) ?></span> affiché(s)
                 </span>
             </div>
 
@@ -174,7 +211,8 @@ if (!empty($filiere_selectionnee)) {
                                 <th class="text-end pe-3">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <!-- Ajout d'un ID au corps du tableau -->
+                        <tbody id="tableau-etudiants">
                             <?php foreach($etudiants as $e): ?>
                             <tr>
                                 <td class="ps-3 fw-bold text-secondary">#<?= $e['id_etudiant'] ?></td>
@@ -200,7 +238,7 @@ if (!empty($filiere_selectionnee)) {
                             </tr>
                             <?php endforeach; ?>
                             <?php if(empty($etudiants)): ?>
-                                <tr><td colspan="5" class="text-center py-4 text-muted">Aucun étudiant trouvé pour cette sélection.</td></tr>
+                                <tr id="ligne-vide"><td colspan="5" class="text-center py-4 text-muted">Aucun étudiant trouvé pour cette sélection.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -210,6 +248,122 @@ if (!empty($filiere_selectionnee)) {
         </div>
     </div>
 </div>
+
+<!-- LA MAGIE AJAX (JAVASCRIPT) -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('form-ajout-etudiant');
+    const tbody = document.getElementById('tableau-etudiants');
+    const btnSubmit = document.getElementById('btn-submit');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btn-text');
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault(); // On bloque le rechargement classique de la page
+
+        // 1. Préparation visuelle (Désactiver bouton + afficher le spinner)
+        btnSubmit.disabled = true;
+        spinner.classList.remove('d-none');
+        btnText.textContent = " Inscription...";
+
+        // 2. On récupère les données du formulaire
+        const formData = new FormData(form);
+
+        // 3. Appel AJAX avec fetch() vers la page courante
+        fetch('etudiant.php', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest' // Pour dire au serveur "C'est une requête AJAX"
+            }
+        })
+        .then(response => response.json()) // On s'attend à recevoir du JSON
+        .then(data => {
+            if (data.success) {
+                // Succès : Afficher une belle notification avec SweetAlert2
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Succès !',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+                // Créer la nouvelle ligne HTML pour le tableau
+                const e = data.etudiant;
+                const badgeSexe = e.sexe === 'M' ? '<span class="badge bg-info bg-opacity-10 text-info border border-info">M</span>' : '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger">F</span>';
+                
+                const nouvelleLigne = `
+                    <tr class="table-success fade-in"> <!-- Ajout d'une classe temporaire pour surligner -->
+                        <td class="ps-3 fw-bold text-secondary">#${e.id_etudiant}</td>
+                        <td><strong>${e.nom}</strong> ${e.prenom}</td>
+                        <td>${badgeSexe}</td>
+                        <td><span class="badge bg-secondary">${e.libelle_filiere}</span></td>
+                        <td class="text-end pe-3">
+                            <div class="btn-group">
+                                <a href="recu_etudiant.php?id=${e.id_etudiant}" class="btn btn-sm btn-outline-secondary" title="Imprimer le reçu"><i class="bi bi-printer"></i></a>
+                                <a href="notifier.php?id=${e.id_etudiant}" class="btn btn-sm btn-outline-primary" title="Alerte SMS Parent"><i class="bi bi-chat-text"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+
+                // Enlever le message "Aucun étudiant" s'il est là
+                const ligneVide = document.getElementById('ligne-vide');
+                if(ligneVide) ligneVide.remove();
+
+                // Insérer la ligne tout en haut du tableau
+                tbody.insertAdjacentHTML('afterbegin', nouvelleLigne);
+
+                // Mettre à jour les compteurs (effet Waouh)
+                document.getElementById('compteur-total').textContent = parseInt(document.getElementById('compteur-total').textContent) + 1;
+                if(e.sexe === 'M') {
+                    document.getElementById('compteur-hommes').textContent = parseInt(document.getElementById('compteur-hommes').textContent) + 1;
+                } else {
+                    document.getElementById('compteur-femmes').textContent = parseInt(document.getElementById('compteur-femmes').textContent) + 1;
+                }
+
+                // Vider le formulaire (sauf la filière sélectionnée)
+                form.reset(); 
+
+            } else {
+                // Erreur serveur (ex: matricule en double)
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: data.message
+                });
+            }
+        })
+        .catch(error => {
+            // Erreur réseau critique
+            console.error("Erreur AJAX:", error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Erreur technique',
+                text: "Impossible de joindre le serveur. Vérifiez votre connexion."
+            });
+        })
+        .finally(() => {
+            // 4. On remet le bouton à son état normal, peu importe le résultat
+            btnSubmit.disabled = false;
+            spinner.classList.add('d-none');
+            btnText.textContent = "Inscrire l'étudiant";
+        });
+    });
+});
+</script>
+
+<style>
+/* Petite animation CSS pour l'apparition en douceur de la nouvelle ligne */
+@keyframes fadeIn {
+    from { opacity: 0; background-color: #d1e7dd; }
+    to { opacity: 1; background-color: transparent; }
+}
+.fade-in {
+    animation: fadeIn 2s ease-in-out forwards;
+}
+</style>
 
 </body>
 </html>

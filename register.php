@@ -4,9 +4,14 @@ require 'db.php';
 $message = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $identifiant = htmlspecialchars($_POST['identifiant']);
-    $password = $_POST['password']; // En production, il faudra utiliser password_hash()
-    $nom_complet = htmlspecialchars($_POST['nom_complet']);
+    $identifiant = htmlspecialchars(trim($_POST['identifiant']));
+    $password_clair = $_POST['password']; 
+    
+    // --- L'ÉVOLUTION SÉCURITÉ EST ICI ---
+    // On hache le mot de passe avant de le stocker
+    $password_hash = password_hash($password_clair, PASSWORD_BCRYPT);
+    
+    $nom_complet = htmlspecialchars(trim($_POST['nom_complet']));
     $role = $_POST['role'];
 
     // On vérifie si l'identifiant existe déjà
@@ -17,8 +22,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $message = "<div class='alert alert-danger small'><i class='bi bi-exclamation-triangle me-1'></i> Cet identifiant est déjà pris.</div>";
     } else {
         try {
+            // On insère le $password_hash, jamais le mot de passe en clair !
             $stmt = $pdo->prepare("INSERT INTO USERS (identifiant, mot_de_passe, nom_complet, role) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$identifiant, $password, $nom_complet, $role]);
+            $stmt->execute([$identifiant, $password_hash, $nom_complet, $role]);
+            
             $message = "<div class='alert alert-success small'><i class='bi bi-check-circle me-1'></i> Compte créé avec succès ! <br><a href='index.php' class='btn btn-sm btn-success mt-2 w-100 fw-bold'>Aller à la connexion</a></div>";
         } catch (PDOException $e) {
             $message = "<div class='alert alert-danger small'>Erreur : " . $e->getMessage() . "</div>";

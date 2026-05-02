@@ -151,8 +151,8 @@ try {
         
         <div class="card-body p-4">
             <div class="tab-content" id="myTabContent">
-                
-                <div class="tab-pane fade show active" id="filiere" role="tabpanel">
+                <div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle">
                     <h5 class="fw-bold mb-3"><i class="bi bi-diagram-3 text-info me-2"></i>Répartition des Matières par Filière</h5>
                     <table class="table table-bordered table-hover">
                         <thead class="table-light"><tr><th>Filière</th><th>Matière Enseignée</th></tr></thead>
