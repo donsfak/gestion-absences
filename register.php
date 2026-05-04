@@ -6,29 +6,45 @@ $message = '';
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $identifiant = htmlspecialchars(trim($_POST['identifiant']));
     $password_clair = $_POST['password']; 
-    
-    // --- L'ÉVOLUTION SÉCURITÉ EST ICI ---
-    // On hache le mot de passe avant de le stocker
-    $password_hash = password_hash($password_clair, PASSWORD_BCRYPT);
-    
     $nom_complet = htmlspecialchars(trim($_POST['nom_complet']));
     $role = $_POST['role'];
 
-    // On vérifie si l'identifiant existe déjà
-    $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM USERS WHERE identifiant = ?");
-    $stmt_check->execute([$identifiant]);
-    
-    if ($stmt_check->fetchColumn() > 0) {
-        $message = "<div class='alert alert-danger small'><i class='bi bi-exclamation-triangle me-1'></i> Cet identifiant est déjà pris.</div>";
+    // --- BARRIÈRE DE SÉCURITÉ : ÉLÉVATION DE PRIVILÈGES ---
+    $cle_secrete_master = "ESATIC-SECURE-2026"; // Le code secret du Directeur/Jury
+    $erreur_securite = false;
+
+    if ($role === 'ADMIN') {
+        // Vérification stricte : si la clé n'est pas fournie ou est incorrecte
+        if (!isset($_POST['cle_admin']) || $_POST['cle_admin'] !== $cle_secrete_master) {
+            $message = "<div class='alert alert-danger small fw-bold'><i class='bi bi-shield-x me-1'></i> ALERTE SÉCURITÉ : Clé d'autorisation invalide. L'accès Administrateur est refusé.</div>";
+            $erreur_securite = true;
+        }
     } else {
-        try {
-            // On insère le $password_hash, jamais le mot de passe en clair !
-            $stmt = $pdo->prepare("INSERT INTO USERS (identifiant, mot_de_passe, nom_complet, role) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$identifiant, $password_hash, $nom_complet, $role]);
-            
-            $message = "<div class='alert alert-success small'><i class='bi bi-check-circle me-1'></i> Compte créé avec succès ! <br><a href='index.php' class='btn btn-sm btn-success mt-2 w-100 fw-bold'>Aller à la connexion</a></div>";
-        } catch (PDOException $e) {
-            $message = "<div class='alert alert-danger small'>Erreur : " . $e->getMessage() . "</div>";
+        // Par précaution absolue : on force le rôle à PROFESSEUR pour éviter toute falsification de la requête POST
+        $role = 'PROFESSEUR';
+    }
+
+    // Si la vérification de sécurité est passée
+    if (!$erreur_securite) {
+        // On vérifie si l'identifiant existe déjà
+        $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM USERS WHERE identifiant = ?");
+        $stmt_check->execute([$identifiant]);
+        
+        if ($stmt_check->fetchColumn() > 0) {
+            $message = "<div class='alert alert-warning small'><i class='bi bi-exclamation-triangle me-1'></i> Cet identifiant est déjà pris.</div>";
+        } else {
+            try {
+                // Hachage sécurisé du mot de passe
+                $password_hash = password_hash($password_clair, PASSWORD_BCRYPT);
+                
+                // Insertion en base de données
+                $stmt = $pdo->prepare("INSERT INTO USERS (identifiant, mot_de_passe, nom_complet, role) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$identifiant, $password_hash, $nom_complet, $role]);
+                
+                $message = "<div class='alert alert-success small'><i class='bi bi-check-circle me-1'></i> Compte $role créé avec succès ! <br><a href='index.php' class='btn btn-sm btn-success mt-2 w-100 fw-bold'>Aller à la connexion</a></div>";
+            } catch (PDOException $e) {
+                $message = "<div class='alert alert-danger small'>Erreur technique : " . $e->getMessage() . "</div>";
+            }
         }
     }
 }
@@ -66,13 +82,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <label class="form-label text-muted small fw-bold">Mot de passe</label>
                         <input type="password" name="password" class="form-control bg-light" placeholder="Créer un mot de passe" required>
                     </div>
-                    <div class="mb-4">
+                    
+                    <div class="mb-3">
                         <label class="form-label text-muted small fw-bold">Rôle dans l'établissement</label>
-                        <select name="role" class="form-select border-primary" required>
+                        <select name="role" id="select-role" class="form-select border-primary" required onchange="toggleSecretKey()">
                             <option value="PROFESSEUR">Professeur (Accès Saisie uniquement)</option>
                             <option value="ADMIN">Administrateur (Accès Total)</option>
                         </select>
                     </div>
+
+                    <!-- Champ caché activé uniquement si ADMIN est sélectionné -->
+                    <div class="mb-4 d-none" id="div-cle-secrete" style="background-color: #fff3cd; padding: 10px; border-radius: 8px; border: 1px solid #ffe69c;">
+                        <label class="form-label text-danger small fw-bold"><i class="bi bi-shield-lock-fill me-1"></i>Clé d'autorisation requise</label>
+                        <input type="password" name="cle_admin" class="form-control border-danger" placeholder="Code secret de l'établissement">
+                    </div>
+
                     <button type="submit" class="btn btn-primary w-100 p-2 fw-bold"><i class="bi bi-person-plus-fill me-2"></i>CRÉER LE COMPTE</button>
                 </form>
 
@@ -82,5 +106,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
         </div>
     </div>
+
+    <!-- Script JavaScript pour faire apparaître le champ secret -->
+    <script>
+    function toggleSecretKey() {
+        var role = document.getElementById('select-role').value;
+        var divCle = document.getElementById('div-cle-secrete');
+        if(role === 'ADMIN') {
+            // Animation simple pour faire apparaître la boîte
+            divCle.classList.remove('d-none');
+        } else {
+            divCle.classList.add('d-none');
+        }
+    }
+    </script>
 </body>
 </html>

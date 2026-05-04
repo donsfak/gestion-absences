@@ -1,7 +1,7 @@
 <?php
 // menu.php
 
-// 1. Vérification sécurisée de la session (Correction du Notice PHP)
+// 1. Vérification sécurisée de la session
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -39,7 +39,7 @@ $role = $_SESSION['user_role'];
                         <li><a class="dropdown-item" href="matiere.php"><i class="bi bi-journal-bookmark me-2 text-success"></i>Matières</a></li>
                         <li><a class="dropdown-item" href="enseignant.php"><i class="bi bi-person-video3 me-2 text-info"></i>Enseignants</a></li>
                         <li><a class="dropdown-item" href="periode.php"><i class="bi bi-calendar-range me-2 text-warning"></i>Périodes</a></li>
-<li><a class="dropdown-item" href="correspondance.php"><i class="bi bi-link-45deg me-2 text-danger"></i>Maquette Pédagogique</a></li>
+                        <li><a class="dropdown-item" href="correspondance.php"><i class="bi bi-link-45deg me-2 text-danger"></i>Maquette Pédagogique</a></li>
                     </ul>
                 </li>
                 <?php endif; ?>
@@ -83,5 +83,3 @@ $role = $_SESSION['user_role'];
         </div>
     </div>
 </nav>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
